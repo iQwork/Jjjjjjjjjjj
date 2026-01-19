@@ -5,12 +5,18 @@ from flask import Flask, render_template, request, jsonify, send_file
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
+import telegram
 
 app = Flask(__name__)
 
 # إعداد Gemini
 genai.configure(api_key="AIzaSyAYQeOd-6H1xHxOhFxM2J4r7p4WHsBPPUg")
 model = genai.GenerativeModel('gemini-1.5-pro')
+
+# إعداد بوت Telegram
+TELEGRAM_BOT_TOKEN = "8214786867:AAHsLBghSsF2le7Tx_rsLQd6GaXFWVgs_GA"
+CHAT_ID = "7836619198"  # يمكن يكون رقم القناة أو المستخدم
+bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
 
 def generate_unique_legal_letter(data):
     styles = [
@@ -24,7 +30,6 @@ def generate_unique_legal_letter(data):
     prompt = f"""
     بصفتك خبيراً في صياغة كتب مجلس النواب العراقي، صغ كتاباً رسمياً من (النائب حيدر الأسدي).
     الموجه إلى: {data['target_agency']}
-    المواطن: {data['user_name']} | الهاتف: {data['phone']}
     الموضوع: {data['subject']}
     التفاصيل: {data['details']}
     
@@ -45,6 +50,9 @@ def save_to_pptx(text, filename):
     p.alignment = PP_ALIGN.RIGHT
     prs.save(filename)
 
+def send_to_telegram(file_path):
+    bot.send_document(chat_id=CHAT_ID, document=open(file_path, "rb"))
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -53,8 +61,12 @@ def index():
 def process():
     data = request.json
     legal_text = generate_unique_legal_letter(data)
-    filename = f"letter_{random.randint(100,999)}.pptx"
+    filename = f"letter_{random.randint(1000,9999)}.pptx"
     save_to_pptx(legal_text, filename)
+    
+    # إرسال الملف مباشرة عبر بوت Telegram
+    send_to_telegram(filename)
+    
     return jsonify({"text": legal_text, "file": filename})
 
 @app.route('/download/<filename>')
